@@ -1,164 +1,103 @@
-# Security Platform Engineering Challenge
+# Adobe Security – Take-Home Exercise
 
-**Role:** Senior Security Platform Engineer  
-**Timeline:** 5 calendar days  
-**Deliverable:** Working solution with documentation
-
----
-
-## Business Context
-
-Adobe's product teams are struggling with web application security. Each team manages their own WAF rules across AWS and Azure, leading to:
-- Inconsistent security postures
-- Delayed responses to vulnerabilities  
-- High operational overhead
-- Frequent false positives causing customer impact
-- No visibility into what rules are deployed where
-
-Last month, a critical SQL injection vulnerability affected 12 services. Each team took 3-5 days to deploy patches independently, and two teams accidentally blocked legitimate traffic, causing $200K in lost revenue.
+**Role target:** Product Security Engineer – Edge / WAF Focus
+**Estimated Effort:** Approximately **16 focused hours** (this may vary based on individual experience)
+**Deadline:** Submit within **120 hours** (5 days) of receiving the repo invite
 
 ---
 
-## The Problem to Solve
+## 1. Scenario
 
-Design and build a platform that enables product teams to protect their web applications consistently across AWS WAF and Azure WAF, while maintaining Adobe's security standards.
+A new public-facing web application—**OWASP Juice Shop**—is scheduled to launch next week. Before the DNS cut-over, the Product Security team needs confirmation that the proposed edge security configuration meets the following key criteria:
 
-### Business Requirements
-
-**Security Requirements:**
-- When new vulnerabilities are discovered, patches must be deployable across all affected services within 4 hours
-- False positive rate must stay below 0.1% 
-- All changes must be auditable for compliance
-- Security team needs ability to push emergency blocks
-
-**Developer Requirements:**
-- Product teams need self-service capabilities
-- Changes should be testable before production
-- Rollback must be possible within 1 minute
-- No deep WAF expertise should be required
-
-**Operational Requirements:**
-- Support 50+ services across 2 cloud providers
-- Handle 100K+ requests per second aggregate traffic
-- Maintain 99.9% availability
-- Cost-efficient (minimize WAF rule evaluations)
-
-### Constraints
-
-- Must work with existing AWS WAF and Azure Front Door WAF
-- Cannot modify application code
-- Teams use different deployment tools (Terraform, CloudFormation, ARM)
-- Limited to 5 days development time
-- Must use free tier or minimal cloud spend for demo
-
-### Success Criteria
-
-Your solution will be evaluated on:
-1. How well it solves the stated problems
-2. Architecture decisions and trade-offs
-3. Production readiness
-4. Developer experience
-5. Operational sustainability
+1.  **Repeatable:** The core security guardrails can be applied to any future service with minimal effort (e.g., within minutes) via infrastructure as code.
+2.  **Rapidly Tunable:** The security team can deploy an emergency WAF rule (e.g., blocking a newly discovered malicious pattern) in under **30 minutes**.
+3.  **Measurable:** There is a clear Key Performance Indicator (KPI) demonstrating the effectiveness of the edge protection, which can be used for monitoring and tuning.
 
 ---
 
-## Deliverables
+## 2. Deliverables
 
-### 1. Working Solution
-- Demonstrate the core capability
-- Handle at least 2 example services
-- Show both AWS and Azure integration
-- Include automated deployment
+### 0 – Service & Front Door
 
-### 2. Architecture Documentation
-- System design and rationale
-- Key decisions and trade-offs
-- Data models and flows
-- Security considerations
-- Scale and performance approach
+* Deploy the **OWASP Juice Shop** application (using the public container image or using EC2 instead of docker)
+    * **Deployment Target:** Use **AWS ECS Fargate** or similar, EKS, Fargate, Lambda or even EC2 
+* Expose the application publicly using either an **AWS Application Load Balancer (ALB)** *or* **Amazon CloudFront** distribution.
+* Define and manage **all** AWS infrastructure components using **Terraform** *or* **AWS CDK**.
 
-### 3. Demo
-- 5-minute video or live demo showing:
-  - Service onboarding
-  - Vulnerability response
-  - Rollback scenario
-  - Multi-cloud deployment
+### 1 – Reusable WAF Module
 
-### 4. Runbook
-- How to operate your solution
-- How to extend it
-- Known limitations
-- Future improvements
+* Create a reusable infrastructure as code module (e.g., Terraform module or CDK construct) named `edge_waf`.
+* This module should provision an **AWS WAF v2 WebACL**.
+* The module must allow associating the WebACL with the front-door resource (ALB ARN or CloudFront Distribution ID created in Step 0) via **one variable input** passed to the module.
+* Configure the WebACL within the module to:
+    * Enable **at least two** relevant AWS-managed rule groups (e.g., `AWSManagedRulesCommonRuleSet`, `AWSManagedRulesSQLiRuleSet`).
+    * Include **at least one custom rule** designed specifically to block the known Juice Shop SQL injection payload (`' OR 1=1--`) when submitted to the `/rest/products/search` path.
 
----
+### 2 – CI/CD Guardrail
 
-## Evaluation Focus
+* Implement a simple CI/CD pipeline using **GitHub Actions** (`.github/workflows/edge-ci.yml`).
+* The workflow should trigger on Pull Requests targeting the `main` branch and perform the following:
+    * Run a static analysis security tool on your IaC code (`tfsec` for Terraform *or* `cdk-nag` for CDK).
+    * Generate an infrastructure plan (`terraform plan` or `cdk diff`) and post it as a comment on the Pull Request.
+    * *(Conceptual)* Include a step that would require manual reviewer approval before allowing an `apply` / `deploy` action (the actual deployment is done manually for this exercise, but the workflow should show the gate).
 
-We're looking for:
-- **Problem decomposition** - How did you break down the problem?
-- **Architecture thinking** - What patterns and principles did you apply?
-- **Trade-off analysis** - What did you optimize for and why?
-- **Production mindset** - How did you handle failures, monitoring, operations?
-- **Simplicity** - Did you avoid over-engineering?
+### 3 – Rapid-Mitigation Script
 
----
+* Develop a command-line script (`push_block.py`, `push_block.sh`, or similar) for quickly adding block rules to the deployed WAF WebACL.
+* The script must:
+    * Accept either an IP address/CIDR range *or* a URI string/regex pattern as input.
+    * Create or update a **WAF rule** within the WebACL to **block** requests matching the provided input.
+    * Complete its execution (creating/updating the rule via AWS API) in **less than 60 seconds** wall time.
 
-## What We're NOT Looking For
+### 4 – Smoke Test
 
-- Perfect code coverage
-- Beautiful UIs
-- Every possible feature
-- Proprietary Adobe information
+* Provide a simple way to verify the WAF rules are functioning correctly. This can be a script (e.g., Python, Bash using `curl`) or a Postman collection.
+* The test should:
+    * Send a benign request (e.g., GET `/`) to the Juice Shop URL and expect a `200 OK` response.
+    * Send a request containing the specific SQL injection payload (`' OR 1=1--`) to the `/rest/products/search` path and expect a `403 Forbidden` response (indicating it was blocked by the WAF).
+    * Clearly print or display the results of both tests (success/failure and status codes).
 
----
+### 5 – Log Pipeline & KPI
 
-## Advisory Feed Format
+* Configure **WAF logging** to send logs to **Amazon Kinesis Data Firehose**, delivering them to an **S3 bucket** within the same AWS account.
+* Define an **AWS Athena table** that can query the WAF logs stored in the S3 bucket.
+* Provide **one specific Athena SQL query** that calculates and returns the following metrics based on the WAF logs:
+    * `total_requests` (Total requests processed by WAF)
+    * `blocked_requests` (Count of requests blocked by WAF)
+    * `percent_blocked` (Percentage of total requests that were blocked)
+    * `top_5_attack_vectors` (The top 5 rule labels/names that triggered blocks, grouped by label)
+* Include a brief explanation (≤ 200 words) in your README describing how monitoring this KPI (especially `%blocked` and `top_5_attack_vectors`) helps security teams tune rules, identify false positives, and potentially measure Mean Time To Respond (MTTR) for new threats.
 
-Your solution should be able to consume security advisories in this format:
+### 6 – README / Runbook
 
-```json
-{
-  "advisories": [
-    {
-      "id": "ADV-2025-001",
-      "description": "SQL injection in login endpoints",
-      "indicator": "pattern:('.+--)|union.*select",
-      "severity": "critical",
-      "affected_paths": ["/login", "/auth"],
-      "recommended_action": "block"
-    }
-  ]
-}
-```
+* Create a concise `README.md` file (target ≤ 2 pages) in the root of your repository.
+* It must include:
+    * **Prerequisites:** Any tools, accounts, or specific versions needed to run your code.
+    * **Setup:** Clear steps for configuring any required variables (e.g., AWS region, account ID if needed).
+    * **Deployment:** Instructions on how to deploy the entire infrastructure (e.g., `make deploy`, `terraform apply`, `cdk deploy`). Aim for a straightforward process. **Target deployment time:** ~20 minutes (may vary based on AWS).
+    * **Usage:** How to run the `push_block` script (Deliverable 3) with examples.
+    * **Verification:** How to run the smoke test (Deliverable 4) and interpret its output.
+    * **KPI Query:** How to execute the Athena query (Deliverable 5) and where to view the results (e.g., AWS Console).
+    * **Evidence:** Include or reference the location of required outputs like smoke test results and KPI query results (e.g., link to files in a `/results` directory or embed directly if concise).
 
 ---
 
-## FAQ
+## Stretch Goals (Optional)
 
-**Q: What technology should I use?**  
-A: Your choice. Pick what allows you to best demonstrate the solution.
+These are not required but demonstrate deeper expertise:
 
-**Q: How much should I build vs. document?**  
-A: Build enough to prove the concept works. Document the rest.
-
-**Q: Can I use AI tools?**  
-A: Yes, but be prepared to explain your architectural decisions.
-
-**Q: What if I can't access both clouds?**  
-A: Use mocks/stubs but show how real integration would work.
+* Implement the WAF WebACL deployment using **AWS Firewall Manager** for centralized policy management.
+* Add **unit tests** for your infrastructure code using relevant frameworks (e.g., Terratest for Terraform, `pytest-assert-utils` or snapshot testing for CDK).
+* Export the calculated KPI metrics (Deliverable 5) to **Amazon CloudWatch Metrics** and create a simple **CloudWatch Dashboard** displaying the `%blocked` rate.
 
 ---
 
-## Submission
+## 3. Submission Process
 
-- GitHub repository with your solution
-- README with setup instructions
-- Architecture documentation
-- Demo video or instructions for live demo
-
-**Submit to:** [submission-email]  
-**Deadline:** 5 days from receipt
-
----
-
-*We're interested in how you think about and solve this problem. There's no single right answer.*
+1.  Create a **private** GitHub repository for your solution. Invite the specified Adobe contact(s) as collaborators.
+2.  **Commit your code early and often.** We value seeing your thought process and development history through the git log.
+3.  Ensure all code, configurations, workflows, and documentation (`README.md`) are pushed to the repository.
+4.  Include evidence of successful execution:
+    * Place outputs from your smoke test (Deliverable 4) and KPI query (Deliverable 5) either in a dedicated `/results` directory or embed them clearly within your `README.md`.
+    * If you used AI assistance (like ChatGPT, Copilot, etc.), please include a brief summary or examples of key prompts used in your `README.md` or a separate file.
