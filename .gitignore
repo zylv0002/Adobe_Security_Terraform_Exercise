@@ -7,9 +7,6 @@
 # crash
 crash.log
 
-# var
-*.tfvars
-
 #IDE config
 .idea/
 .vscode/
