@@ -51,7 +51,7 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
 	3. Declared two AWS managed rule sets, AWSManagedRulesCommonRuleSet with priority=10 and AWSManagedRulesSQLiRuleSet with priority=20
 	4. Created a custom rule with priority=30 that blocks the SQLi payload "' OR 1=1--" when submitted to the /rest/products/search path.
 ### I learned that:
-   1. WAF priority defines the sequence in which rule sets are evaluated (from lower to higher).
+    1. WAF priority defines the sequence in which rule sets are evaluated (from lower to higher).
 
 ### 2 – CI/CD Guardrail
 
@@ -96,7 +96,7 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
 	1. We can use jsonencode to generate the policy statement to minimize errors associated with hardcoding。
 	2. We can assign actions s3:ListBucketMultipartUploads and s3:AbortMultipartUpload to Firehose roles to allow identify and clean up the interrupted upload to avoice additional cost.
 	3. Based on the Principle of Least Privilege, read and write access should be separated by granting write access only to specific WAF resources.
-   4. I have limited experience with firehose and Athena. By completd this delivery, I now know that firehose will help buffer, compress and categorize the log, instead of writing every single log directly into S3 bucket, which would save significant cost and boost performance.
+    4. I have limited experience with firehose and Athena. By completd this delivery, I now know that firehose will help buffer, compress and categorize the log, instead of writing every single log directly into S3 bucket, which would save significant cost and boost performance.
 
 ---
 
