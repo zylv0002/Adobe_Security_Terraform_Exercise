@@ -45,12 +45,12 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
     * Enable **at least two** relevant AWS-managed rule groups (e.g., `AWSManagedRulesCommonRuleSet`, `AWSManagedRulesSQLiRuleSet`).
     * Include **at least one custom rule** designed specifically to block the known Juice Shop SQL injection payload (`' OR 1=1--`) when submitted to the `/rest/products/search` path.
  
-My actions:
+### My actions:
 	1. Configured a reusable AWS WAF v2 WebACL Module (edge_waf).
 	2. Associated the WAF module with Delivery #0 by accepting the ALB ARN as an input variable.
 	3. Declared two AWS managed rule sets, AWSManagedRulesCommonRuleSet with priority=10 and AWSManagedRulesSQLiRuleSet with priority=20
 	4. Created a custom rule with priority=30 that blocks the SQLi payload "' OR 1=1--" when submitted to the /rest/products/search path.
-I learned that:
+### I learned that:
    1. WAF priority defines the sequence in which rule sets are evaluated (from lower to higher).
 
 ### 2 – CI/CD Guardrail
@@ -88,11 +88,11 @@ I learned that:
     * `top_5_attack_vectors` (The top 5 rule labels/names that triggered blocks, grouped by label)
 * Include a brief explanation (≤ 200 words) in your README describing how monitoring this KPI (especially `%blocked` and `top_5_attack_vectors`) helps security teams tune rules, identify false positives, and potentially measure Mean Time To Respond (MTTR) for new threats.
 
-My actions:
+### My actions:
 	1. Configured the aws_kinesis_firehose_delivery_stream.
 	2. Configured the logging configuration for the WAF. 
 	3. Created Athena catalog for WAF logs, and prepared a SQL query that will calculate the highlighted KPIs (total_requests, blocked_requests and percent_blocked and top_5_attack_vectors). 
-I learned that:
+### I learned that:
 	1. We can use jsonencode to generate the policy statement to minimize errors associated with hardcoding。
 	2. We can assign actions s3:ListBucketMultipartUploads and s3:AbortMultipartUpload to Firehose roles to allow identify and clean up the interrupted upload to avoice additional cost.
 	3. Based on the Principle of Least Privilege, read and write access should be separated by granting write access only to specific WAF resources.
