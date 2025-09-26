@@ -24,14 +24,14 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
 * Expose the application publicly using either an **AWS Application Load Balancer (ALB)** *or* **Amazon CloudFront** distribution.
 * Define and manage **all** AWS infrastructure components using **Terraform** *or* **AWS CDK**.
 
-##My actions:
+###My actions:
 	1. Initiate a VPC with public and private subnets.
 	2. Placed compute resource (ECS Fargate) in the private subnet and an Application Load Balancer (ALB) in the public subnet.
 	3. Configured traffic to route through AWS WAF (Reusable WAF module named 'edge_waf', see ## Delivery #1) before reaching the ALB.
 	4. Deployed the ALB with a DNS name: 'juice-waf-dev-alb-1347322202.us-east-1.elb.amazonaws.com'.
 	5. Set ALB ingress rules to allow all HTTP (port 80) traffic and forward it to a Target Group on port 3000.
 	6. The Target Group directs traffic to the ECS Fargate service, which hosts the OWASP Juice Shop application using the container image (bkimminich/juice-shop).
-I learned that:
+###I learned that:
 	1. WAF is a managed service: I realized that WAF is a managed service that is not deployed within the VPC I created.
 	2. I initially mixed up the security group and the target group. After some research, I now understand that a security group acts as a firewall that's attached to other resources to control network traffic (at the network layer), while a target group is a resource that routes traffic to the correct destinations, which is the ECS Fargate in this case.
 
