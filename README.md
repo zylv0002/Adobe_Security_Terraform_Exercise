@@ -24,7 +24,7 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
 * Expose the application publicly using either an **AWS Application Load Balancer (ALB)** *or* **Amazon CloudFront** distribution.
 * Define and manage **all** AWS infrastructure components using **Terraform** *or* **AWS CDK**.
 
-My actions:
+##My actions:
 	1. Initiate a VPC with public and private subnets.
 	2. Placed compute resource (ECS Fargate) in the private subnet and an Application Load Balancer (ALB) in the public subnet.
 	3. Configured traffic to route through AWS WAF (Reusable WAF module named 'edge_waf', see ## Delivery #1) before reaching the ALB.
