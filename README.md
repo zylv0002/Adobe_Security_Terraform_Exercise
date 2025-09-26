@@ -1,8 +1,7 @@
 # Adobe Security – Take-Home Exercise
 
-**Role target:** Product Security Engineer – Edge / WAF Focus
-**Estimated Effort:** Approximately **16 focused hours** (this may vary based on individual experience)
-**Deadline:** Submit within **120 hours** (5 days) of receiving the repo invite
+**Role target:**  This is a production-level exercise designed by Adobe’s Security Engineer team simulating the responsibilities of a
+mid-level security engineer focused on Infrastructure-as-Code (IaC) for rapid, repeatable deployments
 
 ---
 
@@ -25,6 +24,18 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
 * Expose the application publicly using either an **AWS Application Load Balancer (ALB)** *or* **Amazon CloudFront** distribution.
 * Define and manage **all** AWS infrastructure components using **Terraform** *or* **AWS CDK**.
 
+My actions:
+	1. Initiate a VPC with public and private subnets.
+	2. Placed compute resource (ECS Fargate) in the private subnet and an Application Load Balancer (ALB) in the public subnet.
+	3. Configured traffic to route through AWS WAF (Reusable WAF module named 'edge_waf', see ## Delivery #1) before reaching the ALB.
+	4. Deployed the ALB with a DNS name: 'juice-waf-dev-alb-1347322202.us-east-1.elb.amazonaws.com'.
+	5. Set ALB ingress rules to allow all HTTP (port 80) traffic and forward it to a Target Group on port 3000.
+	6. The Target Group directs traffic to the ECS Fargate service, which hosts the OWASP Juice Shop application using the container image (bkimminich/juice-shop).
+I learned that:
+	1. WAF is a managed service: I realized that WAF is a managed service that is not deployed within the VPC I created.
+	2. I initially mixed up the security group and the target group. After some research, I now understand that a security group acts as a firewall that's attached to other resources to control network traffic (at the network layer), while a target group is a resource that routes traffic to the correct destinations, which is the ECS Fargate in this case.
+
+
 ### 1 – Reusable WAF Module
 
 * Create a reusable infrastructure as code module (e.g., Terraform module or CDK construct) named `edge_waf`.
@@ -33,6 +44,14 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
 * Configure the WebACL within the module to:
     * Enable **at least two** relevant AWS-managed rule groups (e.g., `AWSManagedRulesCommonRuleSet`, `AWSManagedRulesSQLiRuleSet`).
     * Include **at least one custom rule** designed specifically to block the known Juice Shop SQL injection payload (`' OR 1=1--`) when submitted to the `/rest/products/search` path.
+ 
+My actions:
+	1. Configured a reusable AWS WAF v2 WebACL Module (edge_waf).
+	2. Associated the WAF module with Delivery #0 by accepting the ALB ARN as an input variable.
+	3. Declared two AWS managed rule sets, AWSManagedRulesCommonRuleSet with priority=10 and AWSManagedRulesSQLiRuleSet with priority=20
+	4. Created a custom rule with priority=30 that blocks the SQLi payload "' OR 1=1--" when submitted to the /rest/products/search path.
+I learned that:
+   1. WAF priority defines the sequence in which rule sets are evaluated (from lower to higher).
 
 ### 2 – CI/CD Guardrail
 
@@ -69,17 +88,15 @@ A new public-facing web application—**OWASP Juice Shop**—is scheduled to lau
     * `top_5_attack_vectors` (The top 5 rule labels/names that triggered blocks, grouped by label)
 * Include a brief explanation (≤ 200 words) in your README describing how monitoring this KPI (especially `%blocked` and `top_5_attack_vectors`) helps security teams tune rules, identify false positives, and potentially measure Mean Time To Respond (MTTR) for new threats.
 
-### 6 – README / Runbook
-
-* Create a concise `README.md` file (target ≤ 2 pages) in the root of your repository.
-* It must include:
-    * **Prerequisites:** Any tools, accounts, or specific versions needed to run your code.
-    * **Setup:** Clear steps for configuring any required variables (e.g., AWS region, account ID if needed).
-    * **Deployment:** Instructions on how to deploy the entire infrastructure (e.g., `make deploy`, `terraform apply`, `cdk deploy`). Aim for a straightforward process. **Target deployment time:** ~20 minutes (may vary based on AWS).
-    * **Usage:** How to run the `push_block` script (Deliverable 3) with examples.
-    * **Verification:** How to run the smoke test (Deliverable 4) and interpret its output.
-    * **KPI Query:** How to execute the Athena query (Deliverable 5) and where to view the results (e.g., AWS Console).
-    * **Evidence:** Include or reference the location of required outputs like smoke test results and KPI query results (e.g., link to files in a `/results` directory or embed directly if concise).
+My actions:
+	1. Configured the aws_kinesis_firehose_delivery_stream.
+	2. Configured the logging configuration for the WAF. 
+	3. Created Athena catalog for WAF logs, and prepared a SQL query that will calculate the highlighted KPIs (total_requests, blocked_requests and percent_blocked and top_5_attack_vectors). 
+I learned that:
+	1. We can use jsonencode to generate the policy statement to minimize errors associated with hardcoding。
+	2. We can assign actions s3:ListBucketMultipartUploads and s3:AbortMultipartUpload to Firehose roles to allow identify and clean up the interrupted upload to avoice additional cost.
+	3. Based on the Principle of Least Privilege, read and write access should be separated by granting write access only to specific WAF resources.
+   4. I have limited experience with firehose and Athena. By completd this delivery, I now know that firehose will help buffer, compress and categorize the log, instead of writing every single log directly into S3 bucket, which would save significant cost and boost performance.
 
 ---
 
@@ -92,12 +109,3 @@ These are not required but demonstrate deeper expertise:
 * Export the calculated KPI metrics (Deliverable 5) to **Amazon CloudWatch Metrics** and create a simple **CloudWatch Dashboard** displaying the `%blocked` rate.
 
 ---
-
-## 3. Submission Process
-
-1.  Create a **private** GitHub repository for your solution. Invite the specified Adobe contact(s) as collaborators.
-2.  **Commit your code early and often.** We value seeing your thought process and development history through the git log.
-3.  Ensure all code, configurations, workflows, and documentation (`README.md`) are pushed to the repository.
-4.  Include evidence of successful execution:
-    * Place outputs from your smoke test (Deliverable 4) and KPI query (Deliverable 5) either in a dedicated `/results` directory or embed them clearly within your `README.md`.
-    * If you used AI assistance (like ChatGPT, Copilot, etc.), please include a brief summary or examples of key prompts used in your `README.md` or a separate file.
