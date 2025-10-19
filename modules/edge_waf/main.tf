@@ -54,6 +54,7 @@ resource "aws_wafv2_web_acl" "this" {
   dynamic "rule" {
     for_each = local.managed
     content {
+      # Declare rule name for this WAF module
       name     = rule.value.name
       priority = rule.value.priority
       override_action {
@@ -61,8 +62,9 @@ resource "aws_wafv2_web_acl" "this" {
       }
       statement {
         managed_rule_group_statement {
+          # Declare vendor name and the managed rule group for Terraform plan
           name        = rule.value.name
-          vendor_name = rule.value.vendor
+          vendor_name = rule.value.vendor 
         }
       }
       visibility_config {
@@ -158,11 +160,15 @@ resource "aws_wafv2_web_acl" "this" {
 
 # Associate to ALB (REGIONAL). For CloudFront, set web_acl_id on the distribution in its resource.
 resource "aws_wafv2_web_acl_association" "assoc" {
+#If scope is REGIONAL → create 1 association (attach WebACL to the ALB).
+#If scope is CLOUDFRONT → create 0 associations (skip; CloudFront handles it on the distribution).
   count        = var.scope == "REGIONAL" ? 1 : 0
   resource_arn = var.front_door_assoc
   web_acl_arn  = aws_wafv2_web_acl.this.arn
+  # Ignore changes made to the variables outside of this .tf (change made in the AWS console). Only affect varaibles that mentioned in this association block.
   lifecycle { ignore_changes = all }
 }
 
+# output the webacl arn and id to teraform.tfstate after 'terraform apply'
 output "web_acl_arn" { value = aws_wafv2_web_acl.this.arn }
 output "web_acl_id" { value = aws_wafv2_web_acl.this.id }
